@@ -73,7 +73,7 @@ import JSZip from 'jszip';
 import { openAiConfig, normalizedChatUrl } from '../utils/openai';
 import { buildSummaryPriceName, ensurePdfExtension } from '../utils/fileName';
 
-GlobalWorkerOptions.workerSrc = new URL('/pdf.worker.min.mjs', import.meta.url).toString();
+GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 type BatchItem = {
   id: number;
