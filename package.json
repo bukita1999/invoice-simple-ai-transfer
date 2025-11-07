@@ -1,0 +1,22 @@
+{
+  "name": "invoice-simple-ai-transfer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "pdfjs-dist": "4.6.82",
+    "vue": "3.4.21"
+  },
+  "devDependencies": {
+    "@types/node": "20.8.10",
+    "@vitejs/plugin-vue": "5.0.5",
+    "typescript": "5.4.5",
+    "vite": "5.2.10",
+    "vue-tsc": "2.0.11"
+  }
+}
