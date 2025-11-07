@@ -69,12 +69,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
 import { openAiConfig, normalizedChatUrl } from '../utils/openai';
 import { buildSummaryPriceName, ensurePdfExtension } from '../utils/fileName';
 
-GlobalWorkerOptions.workerSrc = workerSrc;
+GlobalWorkerOptions.workerSrc = new URL('/pdf.worker.min.mjs', import.meta.url).toString();
 
 type BatchItem = {
   id: number;

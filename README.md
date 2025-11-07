@@ -18,6 +18,10 @@
 
 3. 启动后访问 `http://localhost:5173`。
 
+### PDF.js Worker
+
+项目会在启动或构建前自动执行 `npm run copy-pdf-worker`，把 `pdfjs-dist` 中的 `pdf.worker.min.mjs` 复制到 `public/` 目录，使浏览器从当前站点加载该 Worker（Docker 镜像中也会携带该文件）。若该步骤失败，可手动运行 `npm run copy-pdf-worker`。
+
 ## 使用说明
 
 ### 单文件模式（首页）

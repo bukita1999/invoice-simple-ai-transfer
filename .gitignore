@@ -24,6 +24,9 @@ build
 # Dependency directories
 node_modules
 
+# Generated static assets
+public/pdf.worker.min.mjs
+
 # Environment files
 .env
 .env.*

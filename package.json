@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "copy-pdf-worker": "node scripts/copy-pdf-worker.mjs",
+    "predev": "npm run copy-pdf-worker",
     "dev": "vite",
+    "prebuild": "npm run copy-pdf-worker",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
