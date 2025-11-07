@@ -22,22 +22,12 @@
     </section>
 
     <section class="panel" v-if="pdfText">
-      <h2>2. 提交给 ChatGPT</h2>
-      <label class="field">
-        <span>OpenAI API Key</span>
-        <input type="password" v-model.trim="apiKey" placeholder="sk-..." />
-      </label>
-      <label class="field">
-        <span>模型</span>
-        <select v-model="model">
-          <option value="gpt-4o-mini">gpt-4o-mini</option>
-          <option value="gpt-4o">gpt-4o</option>
-          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-        </select>
-      </label>
+      <h2>2. AI 解析</h2>
+      <p class="hint">API Key、Base URL 与模型均来自 .env 配置。</p>
       <button class="primary" :disabled="!canAnalyze" @click="analyzeWithChatGPT">
         {{ processing ? '解析中...' : '生成总结与价格' }}
       </button>
+      <p v-if="envWarning" class="error">{{ envWarning }}</p>
       <p v-if="error" class="error">{{ error }}</p>
       <div v-if="summary || price" class="result">
         <p><strong>总结：</strong>{{ summary || '（暂无）' }}</p>
@@ -71,11 +61,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 GlobalWorkerOptions.workerSrc = workerSrc;
+
+const defaultApiKey = (import.meta.env.VITE_OPENAI_API_KEY as string | undefined)?.trim() ?? '';
+const defaultBaseUrl = (import.meta.env.VITE_OPENAI_BASE_URL as string | undefined)?.trim() ?? 'https://api.openai.com/v1';
+const defaultModel = (import.meta.env.VITE_OPENAI_MODEL as string | undefined)?.trim() ?? 'gpt-4o-mini';
+
+const apiConfig = {
+  key: defaultApiKey,
+  baseUrl: defaultBaseUrl || 'https://api.openai.com/v1',
+  model: defaultModel || 'gpt-4o-mini'
+};
 
 const droppedFile = ref<File | null>(null);
 const pdfText = ref('');
@@ -83,16 +83,37 @@ const summary = ref('');
 const price = ref('');
 const processing = ref(false);
 const error = ref('');
-const apiKey = ref('');
-const model = ref<'gpt-4o-mini' | 'gpt-4o' | 'gpt-4.1-mini'>('gpt-4o-mini');
 const isDragging = ref(false);
 const renameInput = ref('');
 const renamedUrl = ref('');
 const renameMessage = ref('');
 
+function sanitizeFileName(value: string) {
+  return value.replace(/[\\/:*?"<>|]/g, '_').trim();
+}
+
+function ensurePdfExtension(name: string) {
+  return name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`;
+}
+
+function updateRenameSuggestion() {
+  if (!summary.value && !price.value) return;
+  const parts = [summary.value, price.value].filter(Boolean);
+  if (!parts.length) return;
+  const safeBase = sanitizeFileName(parts.join(' - ')) || '文档';
+  renameInput.value = ensurePdfExtension(safeBase);
+}
+
 const fileName = computed(() => droppedFile.value?.name ?? '');
 const charCount = computed(() => pdfText.value.length);
-const canAnalyze = computed(() => !processing.value && Boolean(apiKey.value) && Boolean(pdfText.value));
+const envWarning = computed(() => (apiConfig.key ? '' : '请在 .env 中配置 VITE_OPENAI_API_KEY'));
+const canAnalyze = computed(() => !processing.value && Boolean(pdfText.value) && !envWarning.value);
+
+watch([summary, price], () => {
+  if (!processing.value) {
+    updateRenameSuggestion();
+  }
+});
 
 async function handleFiles(files: FileList | null) {
   if (!files || !files.length) return;
@@ -146,8 +167,8 @@ async function extractPdfText(file: File) {
 }
 
 async function analyzeWithChatGPT() {
-  if (!apiKey.value) {
-    error.value = '请先填写 OpenAI API Key。';
+  if (!apiConfig.key) {
+    error.value = '尚未在 .env 中配置 VITE_OPENAI_API_KEY。';
     return;
   }
   if (!pdfText.value) {
@@ -160,14 +181,15 @@ async function analyzeWithChatGPT() {
   const prompt = `你是文件解析助手。请根据以下 PDF 提取的原始文本，仅输出 JSON，格式为 {"summary":"8个字以内的总结","price":"价格数值或描述"}。`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const normalizedBaseUrl = apiConfig.baseUrl.replace(/\/$/, '');
+    const response = await fetch(`${normalizedBaseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.value}`
+        Authorization: `Bearer ${apiConfig.key}`
       },
       body: JSON.stringify({
-        model: model.value,
+        model: apiConfig.model,
         temperature: 0.2,
         messages: [
           { role: 'system', content: '你是擅长提炼总结和金额信息的 AI 助手。' },
@@ -203,6 +225,7 @@ async function analyzeWithChatGPT() {
 
     summary.value = parsed.summary ?? '';
     price.value = parsed.price ?? '';
+    updateRenameSuggestion();
   } catch (err) {
     console.error(err);
     error.value = err instanceof Error ? err.message : '解析失败';
