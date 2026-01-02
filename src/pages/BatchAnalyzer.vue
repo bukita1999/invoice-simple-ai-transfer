@@ -121,6 +121,14 @@ function pushLog(message: string) {
   logEntries.value = [`[${time}] ${message}`, ...logEntries.value].slice(0, 300);
 }
 
+function escapeCsvValue(value: string) {
+  const normalized = (value ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (/[",\n]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+  return normalized;
+}
+
 async function handleInput(event: Event) {
   const target = event.target as HTMLInputElement;
   await handleFiles(target.files);
@@ -294,6 +302,7 @@ async function downloadZip() {
   if (!batchFiles.value.length) return;
   zipProcessing.value = true;
   pushLog('开始生成压缩包');
+  const batchTimestamp = Date.now();
 
   try {
     const zip = new JSZip();
@@ -301,15 +310,20 @@ async function downloadZip() {
       const fileName = ensurePdfExtension(item.newName || buildSummaryPriceName(item.summary, item.price, item.file.name));
       zip.file(fileName || `文件-${index + 1}.pdf`, item.file);
     });
+    const csvLines = [
+      '概括,价格',
+      ...batchFiles.value.map((item) => `${escapeCsvValue(item.summary)},${escapeCsvValue(item.price)}`)
+    ];
+    zip.file(`summary-price-${batchTimestamp}.csv`, csvLines.join('\n'));
 
     const blob = await zip.generateAsync({ type: 'blob' });
     resetZipUrl();
     zipUrl.value = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = zipUrl.value;
-    link.download = `pdf-batch-${Date.now()}.zip`;
+    link.download = `pdf-batch-${batchTimestamp}.zip`;
     link.click();
-    pushLog('压缩包生成完成');
+    pushLog('压缩包生成完成（含概括与价格 CSV）');
   } catch (err) {
     console.error(err);
     error.value = err instanceof Error ? err.message : '压缩失败';
